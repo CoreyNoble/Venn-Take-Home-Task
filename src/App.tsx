@@ -1,12 +1,12 @@
-import './App.css'
+import './App.scss'
+import Card from './components/Card/Card';
+import OnboardingForm from './components/OnboardingForm/OnboardingForm';
 
 function App() {
   return (
-    <>
-      <div className="card">
-        <h1>Venn - Take Home Task - Corey Noble</h1>
-      </div>
-    </>
+    <Card>
+      <OnboardingForm />
+    </Card>
   )
 }
 
