@@ -4,3 +4,19 @@
   justify-content: center;
   padding: 2rem;
 }
+
+.app {
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2 {
+  text-align: center;
+  margin: 0 0 1.5rem 0;
+  font-weight: normal;
+}
+
+h1 {
+  font-size: 1.15rem;
+  margin-bottom: 5rem;
+}
