@@ -52,6 +52,12 @@ h1 {
     }
   }
 
+  .error, .required {
+    color: red;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
   button {
     margin-top: 0.5rem;
     display: flex;
