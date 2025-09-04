@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import './OnboardingForm.scss'
 
 function OnboardingForm() {
@@ -12,20 +12,7 @@ function OnboardingForm() {
     const [hasPhoneNumberError, setHasPhoneNumberError] = useState<boolean | null>(null);
     const [hasCorporationNumberError, setHasCorporationNumberError] = useState<boolean | null>(null);
 
-    useEffect(() => {
-        isValidFirstName(firstName);
-    }, [firstName]);
-
-    useEffect(() => {
-        isValidLastName(lastName);
-    }, [lastName]);
-
-    useEffect(() => {
-        isValidCanadianPhone(phoneNumber);
-    }, [phoneNumber]);
-
-    useEffect(() => {
-    }, [corporationNumber]);
+    const phoneInputRef = useRef<HTMLInputElement>(null);
 
     const isValidFirstName = (name: string | null) => {
         if (!name) return false;
@@ -39,27 +26,51 @@ function OnboardingForm() {
 
     const isValidCanadianPhone = (phone: string | null) => {
         if (!phone) return false;
-
-        const canadianPhoneRegex = /^([2-9][0-9]{2})([2-9][0-9]{2})([0-9]{4})$/; // NXX-NXX-XXXX format for Canada
-        const digits = phone.replace(/\D/g, ''); // Remove non-digit characters
-
+        // Remove spaces, dashes, parentheses
+        let digits = phone.replace(/\D/g, '');
+        // Require leading '1' for +1
+        if (digits.length === 11 && digits.startsWith('1')) {
+            digits = digits.slice(1);
+        } else {
+            // If not 11 digits starting with 1, invalid
+            return false;
+        }
+        // Canadian phone: 10 digits, NXX-NXX-XXXX
+        const canadianPhoneRegex = /^([2-9][0-9]{2})([2-9][0-9]{2})([0-9]{4})$/;
         return canadianPhoneRegex.test(digits);
     };
 
-    const isValidCorporationNumber = (corporationNumber: string | null) => {
-        if (!corporationNumber) return false;
+    const handlePhoneNumberPrefix = (e: React.ChangeEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement, Element>) => {
+        let value = e.target.value.replace(/^\+?1?/, "").trim();
+        value = "+1" + value;
+        e.target.value = value;
 
-        const corporationNumberRegex = /^\d{9}$/; // Exactly 9 digits
-
-        return corporationNumberRegex.test(corporationNumber);
+        setPhoneNumber(value);
     }
 
-    const isValidForm = () => {
+    const isValidCorporationNumber = async (corporationNumber: string | null) => {
+        if (!corporationNumber) return false;
+
+        try {
+            // Make the API call to validate the corporation number
+            const response = await fetch(`https://fe-hometask-api.qa.vault.tryvault.com/corporation-number/${corporationNumber}`);
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    const isValidForm = async () => {
         // Validate all fields and store results in local variables
         const isFirstNameValid = isValidFirstName(firstName);
         const isLastNameValid = isValidLastName(lastName);
         const isPhoneNumberValid = isValidCanadianPhone(phoneNumber);
-        const isCorporationNumberValid = isValidCorporationNumber(corporationNumber);
+        const isCorporationNumberValid = await isValidCorporationNumber(corporationNumber);
 
         // Update error states for UI feedback
         setHasFirstNameError(!isFirstNameValid);
@@ -74,18 +85,37 @@ function OnboardingForm() {
 
         return false;
     };
-
+    
     return (
         <>
             <h1>Onboarding Form</h1>
             <form
                 noValidate
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                     // Prevent default form submission behavior
                     e.preventDefault();
 
-                    if (isValidForm()) {
-                        alert('Form submitted successfully!');
+                    if (await isValidForm()) {
+                        try {
+                            // Make the API call to validate the corporation number
+                            const response = await fetch('https://fe-hometask-api.qa.vault.tryvault.com/profile-details', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    firstName: firstName,
+                                    lastName: lastName,
+                                    phone: phoneNumber,
+                                    corporationNumber: corporationNumber,
+                                })});
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            alert('Form submitted successfully!');
+                        } catch (error) {
+                            alert('There was a problem submitting the form: ' + error);
+                        }
                     }
                 }}
                 className="onboardingForm"
@@ -99,10 +129,8 @@ function OnboardingForm() {
                             placeholder='Eg. Corey'
                             required
                             maxLength={50}
-                            onBlur={(e) => {
-                                setFirstName(e.target.value);
-                                setHasFirstNameError(!isValidFirstName(e.target.value));
-                            }}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            onBlur={(e) => setHasFirstNameError(!isValidFirstName(e.target.value))}
                         />
                         {hasFirstNameError && <p className="error">Invalid First Name</p>}
                     </div>
@@ -114,10 +142,8 @@ function OnboardingForm() {
                             placeholder='Eg. Noble'
                             required
                             maxLength={50}
-                            onBlur={(e) => {
-                                setLastName(e.target.value);
-                                setHasLastNameError(!isValidLastName(e.target.value));
-                            }}
+                            onChange={(e) => setLastName(e.target.value)}
+                            onBlur={(e) => setHasLastNameError(!isValidLastName(e.target.value))}
                         />
                         {hasLastNameError && <p className="error">Invalid Last Name</p>}
                     </div>
@@ -126,14 +152,17 @@ function OnboardingForm() {
                     <label htmlFor="phoneNumber">Phone Number <span className="required">*</span></label>
                     <input
                         id="phoneNumber"
+                        ref={phoneInputRef}
                         type="tel"
                         required
-                        pattern="[0-9]{10}"
-                        placeholder='Eg. 9055161757'
-                        onBlur={(e) => {
-                            setPhoneNumber(e.target.value);
-                            setHasPhoneNumberError(!isValidCanadianPhone(e.target.value));
-                        }}
+                        pattern="^\+1\s?([2-9][0-9]{2})[\s\-]?([2-9][0-9]{2})[\s\-]?([0-9]{4})$"
+                        placeholder='Eg. +19055161757'
+                        // Ensure +1 prefix on focus
+                        onFocus={handlePhoneNumberPrefix}
+                        // Handles autofill and user input
+                        onChange={handlePhoneNumberPrefix}
+                        // Handles formatting on blur
+                        onBlur={(e) => setHasPhoneNumberError(!isValidCanadianPhone(e.target.value))}
                     />
                     {hasPhoneNumberError && <p className="error">Invalid Canadian Phone Number</p>}
                 </div>
@@ -146,10 +175,8 @@ function OnboardingForm() {
                         placeholder='Eg. 123456789'
                         min={1}
                         maxLength={9}
-                        onBlur={(e) => {
-                            setCorporationNumber(e.target.value);
-                            setHasCorporationNumberError(!isValidCorporationNumber(e.target.value));
-                        }}
+                        onChange={(e) => setCorporationNumber(e.target.value)}
+                        onBlur={(e) => setHasCorporationNumberError(!isValidCorporationNumber(e.target.value))}
                     />
                     {hasCorporationNumberError && <p className="error">Invalid Corporation Number</p>}
                 </div>
