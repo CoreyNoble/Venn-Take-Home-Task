@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import './Card.scss'
+import './Card.scss';
 
 function Card({ children }: { children: ReactNode }) {
     return (
