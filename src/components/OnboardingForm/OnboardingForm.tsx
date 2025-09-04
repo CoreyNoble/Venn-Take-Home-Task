@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useRef } from 'react';
 import './OnboardingForm.scss'
 
@@ -88,7 +89,7 @@ function OnboardingForm() {
     
     return (
         <>
-            <h1>Onboarding Form</h1>
+            <h2>Onboarding Form</h2>
             <form
                 noValidate
                 onSubmit={async (e) => {
